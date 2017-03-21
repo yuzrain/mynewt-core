@@ -698,6 +698,11 @@ ble_ll_conn_continue_rx_encrypt(void *arg)
 static uint32_t
 ble_ll_conn_get_next_sched_time(struct ble_ll_conn_sm *connsm)
 {
+
+#if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
+    uint32_t ce_end;
+    ce_end = connsm->ce_end_time;
+#else
     uint32_t itvl;
     uint32_t ce_end;
     uint32_t next_sched_time;
@@ -711,6 +716,7 @@ ble_ll_conn_get_next_sched_time(struct ble_ll_conn_sm *connsm)
             ce_end = next_sched_time;
         }
     }
+#endif
 
     return ce_end;
 }
@@ -1552,6 +1558,9 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     uint8_t *evbuf;
     struct os_mbuf *m;
     struct os_mbuf_pkthdr *pkthdr;
+#if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
+    os_sr_t sr;
+#endif
 
     /* Remove scheduler events just in case */
     ble_ll_sched_rmv_elem(&connsm->conn_sch);
@@ -1588,6 +1597,16 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     /* Make sure events off queue */
     os_eventq_remove(&g_ble_ll_data.ll_evq, &connsm->conn_ev_end);
 
+#if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
+    /* Remove from occupied periods */
+    OS_ENTER_CRITICAL(sr);
+    assert(g_ble_ll_sched_data.sch_num_occ_periods > 0);
+    assert(g_ble_ll_sched_data.sch_occ_period_mask & connsm->period_occ_mask);
+    --g_ble_ll_sched_data.sch_num_occ_periods;
+    g_ble_ll_sched_data.sch_occ_period_mask &= ~connsm->period_occ_mask;
+    OS_EXIT_CRITICAL(sr);
+#endif
+
     /* Connection state machine is now idle */
     connsm->conn_state = BLE_LL_CONN_STATE_IDLE;
 
@@ -1611,7 +1630,8 @@ ble_ll_conn_end(struct ble_ll_conn_sm *connsm, uint8_t ble_err)
     STAILQ_INSERT_TAIL(&g_ble_ll_conn_free_list, connsm, free_stqe);
 
     /* Log connection end */
-    ble_ll_log(BLE_LL_LOG_ID_CONN_END,connsm->conn_handle,0,connsm->event_cntr);
+    ble_ll_log(BLE_LL_LOG_ID_CONN_END,connsm->conn_handle, ble_err,
+               connsm->event_cntr);
 }
 
 /**
@@ -1736,7 +1756,11 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
      * Calculate ce end time. For a slave, we need to add window widening and
      * the transmit window if we still have one.
      */
+#if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
+    itvl = g_ble_ll_sched_data.sch_ticks_per_period;
+#else
     itvl = MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS) * BLE_LL_SCHED_USECS_PER_SLOT;
+#endif
     if (connsm->conn_role == BLE_LL_CONN_ROLE_SLAVE) {
         cur_ww = ble_ll_conn_calc_window_widening(connsm);
         max_ww = (connsm->conn_itvl * (BLE_LL_CONN_ITVL_USECS/2)) - BLE_LL_IFS;
@@ -1804,8 +1828,13 @@ ble_ll_conn_created(struct ble_ll_conn_sm *connsm, uint32_t endtime,
             connsm->tx_win_size * BLE_LL_CONN_TX_WIN_USECS;
         usecs = 1250 + (connsm->tx_win_off * BLE_LL_CONN_TX_WIN_USECS);
         connsm->anchor_point = endtime + os_cputime_usecs_to_ticks(usecs);
+#if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
+        usecs = connsm->slave_cur_tx_win_usecs +
+            g_ble_ll_sched_data.sch_ticks_per_period;
+#else
         usecs = connsm->slave_cur_tx_win_usecs +
             (MYNEWT_VAL(BLE_LL_CONN_INIT_SLOTS) * BLE_LL_SCHED_USECS_PER_SLOT);
+#endif
         connsm->ce_end_time = connsm->anchor_point +
             os_cputime_usecs_to_ticks(usecs);
         connsm->slave_cur_window_widening = 0;

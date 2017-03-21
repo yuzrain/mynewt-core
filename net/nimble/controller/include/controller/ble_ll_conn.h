@@ -154,6 +154,10 @@ struct ble_ll_conn_sm
     uint8_t last_unmapped_chan;
     uint8_t num_used_chans;
 
+#if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
+    uint8_t period_occ_mask;    /* mask: period 0 = 0x01, period 3 = 0x08 */
+#endif
+
     /* RSSI */
     int8_t conn_rssi;
 

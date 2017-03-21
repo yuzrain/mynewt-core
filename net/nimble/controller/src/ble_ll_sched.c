@@ -56,6 +56,10 @@ int32_t g_ble_ll_sched_max_late;
 /* Queue for timers */
 TAILQ_HEAD(ll_sched_qhead, ble_ll_sched_item) g_ble_ll_sched_q;
 
+#if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
+struct ble_ll_sched_obj g_ble_ll_sched_data;
+#endif
+
 /**
  * Checks if two events in the schedule will overlap in time. NOTE: consecutive
  * schedule items can end and start at the same time.
@@ -247,6 +251,165 @@ ble_ll_sched_conn_reschedule(struct ble_ll_conn_sm *connsm)
     return rc;
 }
 
+#if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
+int
+ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend,
+                        uint8_t req_slots)
+{
+    int rc;
+    os_sr_t sr;
+    uint32_t initial_start;
+    uint32_t earliest_start;
+    uint32_t earliest_end;
+    uint32_t dur;
+    uint32_t itvl_t;
+
+    int i;
+    uint32_t tpp;
+    uint32_t tse;
+    uint32_t np;
+    uint32_t cp;
+    uint32_t tick_in_period;
+
+    struct ble_ll_sched_item *entry;
+    struct ble_ll_sched_item *sch;
+
+    /* Better have a connsm */
+    assert(connsm != NULL);
+
+    /* Get schedule element from connection */
+    rc = -1;
+    sch = &connsm->conn_sch;
+
+    /*
+     * The earliest start time is 1.25 msecs from the end of the connect
+     * request transmission. Note that adv_rxend is the end of the received
+     * advertisement, so we need to add an IFS plus the time it takes to send
+     * the connection request
+     */
+    dur = os_cputime_usecs_to_ticks(g_ble_ll_sched_data.sch_ticks_per_period);
+    earliest_start = adv_rxend +
+        os_cputime_usecs_to_ticks(BLE_LL_IFS + BLE_LL_CONN_REQ_DURATION +
+                                  BLE_LL_CONN_INITIAL_OFFSET);
+    earliest_end = earliest_start + dur;
+    initial_start = earliest_start;
+
+    itvl_t = os_cputime_usecs_to_ticks(connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS);
+
+    /* We have to find a place for this schedule */
+    OS_ENTER_CRITICAL(sr);
+
+    /*
+     * Are there any allocated periods? If not, set epoch start to earliest
+     * time
+     */
+    if (g_ble_ll_sched_data.sch_num_occ_periods == 0) {
+        g_ble_ll_sched_data.sch_epoch_start = earliest_start;
+        cp = 0;
+    } else {
+        /*
+         * Earliest start must occur on period boundary.
+         * (tse = ticks since epoch)
+         */
+        tpp = g_ble_ll_sched_data.sch_ticks_per_period;
+        tse = earliest_start - g_ble_ll_sched_data.sch_epoch_start;
+        np = tse / tpp;
+        cp = np % BLE_LL_SCHED_PERIODS;
+        tick_in_period = tse - (np * tpp);
+        if (tick_in_period != 0) {
+            ++cp;
+            if (cp == BLE_LL_SCHED_PERIODS) {
+                cp = 0;
+            }
+            earliest_start += (tpp - tick_in_period);
+        }
+
+        /* Now find first un-occupied period starting from cp */
+        for (i = 0; i < BLE_LL_SCHED_PERIODS; ++i) {
+            if (g_ble_ll_sched_data.sch_occ_period_mask & (1 << cp)) {
+                ++cp;
+                if (cp == BLE_LL_SCHED_PERIODS) {
+                    cp = 0;
+                }
+                earliest_start += tpp;
+            } else {
+                /* not occupied */
+                break;
+            }
+        }
+        /* Should never happen but if it does... */
+        if (i == BLE_LL_SCHED_PERIODS) {
+            OS_EXIT_CRITICAL(sr);
+            return rc;
+        }
+    }
+
+    sch->start_time = earliest_start;
+    earliest_end = earliest_start + dur;
+
+    if (!ble_ll_sched_insert_if_empty(sch)) {
+        /* Nothing in schedule. Schedule as soon as possible */
+        rc = 0;
+        connsm->tx_win_off = 0;
+    } else {
+        os_cputime_timer_stop(&g_ble_ll_sched_timer);
+        TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
+            /* Set these because overlap function needs them to be set */
+            sch->start_time = earliest_start;
+            sch->end_time = earliest_end;
+
+            /* We can insert if before entry in list */
+            if ((int32_t)(sch->end_time - entry->start_time) <= 0) {
+                if ((earliest_start - initial_start) <= itvl_t) {
+                    rc = 0;
+                    TAILQ_INSERT_BEFORE(entry, sch, link);
+                }
+                break;
+            }
+
+            /* Check for overlapping events. Should not occur */
+            if (ble_ll_sched_is_overlap(sch, entry)) {
+                OS_EXIT_CRITICAL(sr);
+                return rc;
+            }
+        }
+
+        if (!entry) {
+            if ((earliest_start - initial_start) <= itvl_t) {
+                rc = 0;
+                TAILQ_INSERT_TAIL(&g_ble_ll_sched_q, sch, link);
+            }
+        }
+
+        if (!rc) {
+            /* calculate number of connection intervals before start */
+            sch->enqueued = 1;
+            connsm->tx_win_off = (earliest_start - initial_start) /
+                os_cputime_usecs_to_ticks(BLE_LL_CONN_ITVL_USECS);
+        }
+    }
+
+    if (!rc) {
+        sch->start_time = earliest_start;
+        sch->end_time = earliest_end;
+        connsm->anchor_point = earliest_start +
+            os_cputime_usecs_to_ticks(XCVR_TX_SCHED_DELAY_USECS);
+        connsm->ce_end_time = earliest_end;
+        connsm->period_occ_mask = (1 << cp);
+        g_ble_ll_sched_data.sch_occ_period_mask |= connsm->period_occ_mask;
+        ++g_ble_ll_sched_data.sch_num_occ_periods;
+    }
+
+    /* Get head of list to restart timer */
+    sch = TAILQ_FIRST(&g_ble_ll_sched_q);
+
+    OS_EXIT_CRITICAL(sr);
+
+    os_cputime_timer_start(&g_ble_ll_sched_timer, sch->start_time);
+
+    return rc;
+}
+#else
 int
 ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend,
                         uint8_t req_slots)
@@ -370,6 +533,7 @@ ble_ll_sched_master_new(struct ble_ll_conn_sm *connsm, uint32_t adv_rxend,
 
     return rc;
 }
+#endif
 
 int
 ble_ll_sched_slave_new(struct ble_ll_conn_sm *connsm)
@@ -859,5 +1023,14 @@ ble_ll_sched_init(void)
 {
     /* Initialize cputimer for the scheduler */
     os_cputime_timer_init(&g_ble_ll_sched_timer, ble_ll_sched_run, NULL);
+
+#if MYNEWT_VAL(BLE_LL_STRICT_CONN_SCHEDULING)
+    memset(&g_ble_ll_sched_data, 0, sizeof(struct ble_ll_sched_obj));
+    g_ble_ll_sched_data.sch_ticks_per_period =
+        os_cputime_usecs_to_ticks(MYNEWT_VAL(BLE_LL_USECS_PER_PERIOD));
+    g_ble_ll_sched_data.sch_ticks_per_epoch = BLE_LL_SCHED_PERIODS *
+        g_ble_ll_sched_data.sch_ticks_per_period;
+#endif
+
     return 0;
 }
