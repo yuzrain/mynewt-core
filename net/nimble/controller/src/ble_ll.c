@@ -1214,10 +1214,23 @@ ble_ll_init(void)
 {
     int rc;
     uint8_t features;
+    ble_addr_t addr;
     struct ble_ll_obj *lldata;
 
     /* Ensure this function only gets called by sysinit. */
     SYSINIT_ASSERT_ACTIVE();
+
+    /* Retrieve the public device address if not set by syscfg */
+    memcpy(&addr.val[0], MYNEWT_VAL_BLE_PUBLIC_DEV_ADDR, BLE_DEV_ADDR_LEN);
+    if (!memcmp(&addr.val[0], ((ble_addr_t *)BLE_ADDR_ANY)->val,
+                BLE_DEV_ADDR_LEN)) {
+        rc = ble_hw_get_public_addr(&addr);
+        if (!rc) {
+            memcpy(g_dev_addr, &addr.val[0], BLE_DEV_ADDR_LEN);
+        }
+    } else {
+        memcpy(g_dev_addr, &addr.val[0], BLE_DEV_ADDR_LEN);
+    }
 
     /* Get pointer to global data object */
     lldata = &g_ble_ll_data;
