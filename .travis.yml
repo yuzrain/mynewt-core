@@ -7,9 +7,23 @@ before_install:
   - sudo apt-get -qq update
   - sudo apt-get install libc6-dev-i386 gcc-5-multilib g++-5-multilib
   - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-5 60 --slave /usr/bin/g++ g++ /usr/bin/g++-5
-
-script:
-  - set -e
+  - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
   - git clone https://github.com/apache/mynewt-newt
   - cd mynewt-newt && ./build.sh && cd ..
-  - mynewt-newt/newt/newt test all -e net/ip/mn_socket,net/oic
+
+script: ""
+
+# env:
+#   global:
+#   - secure: ""
+
+addons:
+  coverity_scan:
+    project:
+      name: "apache/mynewt-core"
+      version: 1.3.0
+      description: "An OS to build, deploy and securely manage billions of devices"
+    notification_email: utzig@apache.org
+    build_command_prepend: "cov-configure --gcc"
+    build_command: "cov-build --dir cov-int mynewt-newt/newt/newt test --executeShell all"
+    branch_pattern: "coverity_scan"
