@@ -25,5 +25,5 @@ addons:
       description: "An OS to build, deploy and securely manage billions of devices"
     notification_email: utzig@apache.org
     build_command_prepend: "cov-configure --gcc"
-    build_command: "cov-build --dir cov-int mynewt-newt/newt/newt test --executeShell all"
+    build_command: "cov-build --dir cov-int mynewt-newt/newt/newt test --executeShell all -e net/ip/mn_socket,net/oic"
     branch_pattern: "coverity_scan"
