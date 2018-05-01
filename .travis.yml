@@ -13,9 +13,9 @@ before_install:
 
 script: ""
 
-# env:
-#   global:
-#   - secure: ""
+env:
+  global:
+    - secure: "CN2ky7nTp9xxr2gMQI1mF8ZA+oBEAaasgm/9wijYu1m2tVUqLqoLsh4f60/h+mZzFHeVDDlT4+aEfLQguDufoS05p30fRPqaBMNSzVJxHhpoy5qR7bSEpHL4fvNkmdJ//8o57z1NCR8O5R/m5kE//Rc/4eprwopIRl4tIliD9P84A9GzX62IrSbCRa3LMQdp93KA1t8xiX+w/oAoQEdFz1PjRNoGyXmqP80TWsY+1x6xZjEBXDArYMhSrpj0Bo38SSqdRFayg5PcNOa2zKsoyuLV1tXFhVEuvEvXlb6ruLy0m2HLG24vWYaJ7DeyfGb/Qzb9r+TxfXE/plp2n9Bq7b5x1idWxFpV1gvuks2bEOlaBm9z8a9QpE+zq3rFAFinb0N0pNCnJQVYHIbdOGxvXYhQNVE2ze8HAQZv0vsVP35JB8qUttfUdaTyUGyT7rpYZyiN4/AK0VI6Qum2DovXRf0gdwzPDGq5uBpkJ8QwDyA9Q1LfKC0l2CqS+x+2Pd2l8AtS1LFxN7nvLu3vljA0llayEvxeJjvLu/2sGHk0MNAdN03e/mkNSqF1wyOy3aWOm74ctQgzmXbNHWhsW3nrto1kQqc+BtXJINFGPw0kJkUDHnqCQSg2PL+LApLf0+etK6QQg59HmqGfLMpB0HaUMd/JR/OQUia0flftQL+mmSY="
 
 addons:
   coverity_scan:
