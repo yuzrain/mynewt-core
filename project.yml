@@ -18,3 +18,9 @@
 #
 
 project.name: "apache-mynewt-core"
+
+repository.apache-mynewt-nimble:
+    type: github
+    vers: 0-dev
+    user: apache
+    repo: mynewt-nimble
