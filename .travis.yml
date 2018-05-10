@@ -7,10 +7,15 @@ before_install:
   #- sudo apt-get -qq update
   #- sudo apt-get install libc6-dev-i386 gcc-5-multilib g++-5-multilib
   #- sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-5 60 --slave /usr/bin/g++ g++ /usr/bin/g++-5
-  - sudo apt-get install gcc-multilib g++-multilib
+  - sudo apt-get install gcc-multilib g++-multilib gcc-arm-none-eabi libnewlib-arm-none-eabi
   - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
   - git clone https://github.com/apache/mynewt-newt
   - cd mynewt-newt && ./build.sh && cd ..
+  - mynewt-newt/newt/newt target create bletiny_nrf52840_coverity
+  - mynewt-newt/newt/newt target set bletiny_nrf52840_coverity app=@apache-mynewt-core/apps/bletiny
+  - mynewt-newt/newt/newt target set bletiny_nrf52840_coverity bsp=@apache-mynewt-core/hw/bsp/nrf52840pdk
+  - mynewt-newt/newt/newt target set bletiny_nrf52840_coverity build_profile=debug
+  - mynewt-newt/newt/newt target set bletiny_nrf52840_coverity syscfg=BLE_SM_LEGACY=1:BLE_SM_SC=1:BLE_EDDYSTONE=1:BLE_EXT_ADV=1:BLE_EXT_ADV_MAX_SIZE=50:BLE_MULTI_ADV_INSTANCES=2:BLE_LL_CFG_FEAT_LE_2M_PHY=1:BLE_LL_CFG_FEAT_LE_CODED_PHY=1:BLE_SM_BONDING=1:BLE_L2CAP_COC_MAX_NUM=2:BLE_HS_DEBUG=1:LOG_LEVEL=0
 
 script: ""
 
@@ -26,6 +31,7 @@ addons:
       description: "An OS to build, deploy and securely manage billions of devices"
     notification_email: utzig@apache.org
     # build_command_prepend: "cov-configure --gcc"
-    build_command_prepend: "cov-configure --comptype gcc --compiler gcc-4.8 --template"
-    build_command: "cov-build --dir cov-int mynewt-newt/newt/newt test --executeShell all -e net/ip/mn_socket,net/oic"
+    # build_command_prepend: "cov-configure --comptype gcc --compiler gcc-4.8 --template"
+    build_command_prepend: "cov-configure --comptype gcc --compiler arm-none-eabi-gcc -- -fno-exceptions -mcpu=cortex-m4 -mthumb -mthumb-interwork"
+    build_command: "cov-build --dir cov-int mynewt-newt/newt/newt build --executeShell bletiny_nrf52840_coverity"
     branch_pattern: "coverity_scan"
