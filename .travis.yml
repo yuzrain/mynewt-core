@@ -11,6 +11,13 @@ before_install:
   - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
   - git clone https://github.com/apache/mynewt-newt
   - cd mynewt-newt && ./build.sh && cd ..
+  - echo ""                                 >> project.yml
+  - echo "repository.apache-mynewt-nimble:" >> project.yml
+  - echo "    type: github"                 >> project.yml
+  - echo "    vers: 0-dev"                  >> project.yml
+  - echo "    user: apache"                 >> project.yml
+  - echo "    repo: mynewt-nimble"          >> project.yml
+  - mynewt-newt/newt/newt install -v
   - mynewt-newt/newt/newt target create bletiny_nrf52840_coverity
   - mynewt-newt/newt/newt target set bletiny_nrf52840_coverity app=@apache-mynewt-core/apps/bletiny
   - mynewt-newt/newt/newt target set bletiny_nrf52840_coverity bsp=@apache-mynewt-core/hw/bsp/nrf52840pdk
