@@ -35,5 +35,8 @@ addons:
     # build_command_prepend: "cov-configure --gcc"
     # build_command_prepend: "cov-configure --comptype gcc --compiler gcc-4.8 --template"
     build_command_prepend: "cov-configure --comptype gcc --compiler arm-none-eabi-gcc -- -fno-exceptions -mcpu=cortex-m4 -mthumb -mthumb-interwork"
-    build_command: "cov-build --dir cov-int mynewt-newt/newt/newt build --executeShell bletiny_nrf52840_coverity; cat /home/travis/build/apache/mynewt-core/cov-int/build-log.txt"
+    build_command: "cov-build --dir cov-int mynewt-newt/newt/newt build --executeShell bletiny_nrf52840_coverity"
     branch_pattern: "coverity_scan"
+
+after_script:
+  - cat /home/travis/build/apache/mynewt-core/cov-int/build-log.txt
