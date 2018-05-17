@@ -1,7 +1,6 @@
 language: c
 dist: trusty
 sudo: required
-group: travis_latest
 
 before_install:
   #- sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
@@ -33,8 +32,6 @@ addons:
       version: 1.3.0
       description: "An OS to build, deploy and securely manage billions of devices"
     notification_email: utzig@apache.org
-    # build_command_prepend: "cov-configure --gcc"
-    # build_command_prepend: "cov-configure --comptype gcc --compiler gcc-4.8 --template"
-    build_command_prepend: "cov-configure --comptype gcc --compiler arm-none-eabi-gcc -- -fno-exceptions -mcpu=cortex-m4 -mthumb -mthumb-interwork"
+    build_command_prepend: "cov-configure --comptype gcc --compiler arm-none-eabi-gcc"
     build_command: "cov-build --dir cov-int mynewt-newt/newt/newt build --executeShell bletiny_nrf52840_coverity"
     branch_pattern: "coverity_scan"
