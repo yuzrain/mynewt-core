@@ -32,6 +32,6 @@ addons:
       version: 1.3.0
       description: "An OS to build, deploy and securely manage billions of devices"
     notification_email: utzig@apache.org
-    build_command_prepend: "cov-configure --comptype gcc --compiler arm-none-eabi-gcc"
+    build_command_prepend: "cov-configure --comptype gcc --compiler /usr/bin/arm-none-eabi-gcc"
     build_command: "cov-build --dir cov-int mynewt-newt/newt/newt build --executeShell bletiny_nrf52840_coverity"
     branch_pattern: "coverity_scan"
