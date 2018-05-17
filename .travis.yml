@@ -37,4 +37,4 @@ addons:
     branch_pattern: "coverity_scan"
 
 after_script:
-  - cat /home/travis/build/apache/mynewt-core/cov-int/build-lig.txt
+  - grep WARNING /home/travis/build/apache/mynewt-core/cov-int/build-log.txt | head -n 100
