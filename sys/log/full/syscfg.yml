@@ -50,6 +50,33 @@ syscfg.defs:
     LOG_CONSOLE:
         description: 'Support logging to console.'
         value: 1
+    LOG_CONSOLE_FORMATTER:
+        description: >
+            Defines formatter used for console output. Supported values are:
+              0 = standard formatter
+              1 = pretty-printing formatter
+        value: 1
+    LOG_CONSOLE_PRETTY_BRIGHT_COLORS:
+        description: >
+            Use bright colors when using pretty-printing. Useful on dark
+            terminals for better contrast.
+        value: 1
+    LOG_CONSOLE_PRETTY_TS_WIDTH:
+        description: >
+            Width of timestamp field when using pretty-printing formatter.
+            Set to 0 to disable printing of timestamp.
+        value: 0
+    LOG_CONSOLE_PRETTY_TS_DIV:
+        description: >
+            Divisor for timestamp value when pretty-printing formatter.
+            Each timestamp will be divided by this number, i.e. a value of 1000
+            will scale timestamp from default [ns] to [us]. This reduces width
+            of printed timestamp but also reduces timestamp resolution,
+        value: 1000
+    LOG_CONSOLE_PRETTY_USE_TASK_NAME:
+        description: >
+            Enables printing of current task name for each log entry.
+        value: 1
 
     LOG_CLI:
         description: 'Expose "log" command in shell.'
@@ -100,3 +127,6 @@ syscfg.defs:
         description: >
             Sysinit stage for logging to the second image slot.
         value: 101
+
+syscfg.restrictions:
+    - LOG_CONSOLE_FORMATTER == 0 || LOG_CONSOLE_FORMATTER == 1
