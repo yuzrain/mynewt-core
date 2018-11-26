@@ -417,8 +417,10 @@ hal_i2c_config(uint8_t i2c_num, const struct hal_i2c_settings *cfg)
 static inline void
 hal_i2c_trigger_start(NRF_TWI_Type *twi, __O uint32_t *task)
 {
+    static const int max_attempt = 2;
     uint32_t end_ticks;
-    int retry = 2;
+    char op = task == &twi->TASKS_STARTTX ? 't' : 'r';
+    int attempt = 1;
 
     /*
      * Some devices [1] can cause glitch on I2C bus which makes TWI controller
@@ -463,9 +465,19 @@ hal_i2c_trigger_start(NRF_TWI_Type *twi, __O uint32_t *task)
              * writes.
              */
             if (!hal_gpio_read(twi->PSELSCL) || twi->EVENTS_BB) {
+                if (attempt > 1) {
+                    console_printf("\x1B[1;32m%s: op %cx attempt %d/%d addr %02x\x1B[0m\n", __func__, op, attempt, max_attempt, (unsigned)twi->ADDRESS);
+                }
                 return;
             }
         } while (CPUTIME_LT(os_cputime_get32(), end_ticks));
+
+        if (attempt == max_attempt) {
+            console_printf("\x1B[1;31m%s: op %cx attempt %d/%d addr %02x\x1B[0m\n", __func__, op, attempt, max_attempt, (unsigned)twi->ADDRESS);
+        } else {
+            console_printf("\x1B[1;33m%s: op %cx attempt %d/%d addr %02x\x1B[0m\n", __func__, op, attempt, max_attempt, (unsigned)twi->ADDRESS);
+        }
+        attempt++;
 
         twi->ENABLE = TWI_ENABLE_ENABLE_Disabled;
         /*
@@ -474,7 +486,7 @@ hal_i2c_trigger_start(NRF_TWI_Type *twi, __O uint32_t *task)
          */
         hal_i2c_clear_bus(twi->PSELSCL, twi->PSELSDA);
         twi->ENABLE = TWI_ENABLE_ENABLE_Enabled;
-    } while (--retry);
+    } while (attempt <= max_attempt);
 }
 
 int
