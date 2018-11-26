@@ -26,6 +26,7 @@
 #include <hal/hal_gpio.h>
 #include <mcu/nrf52_hal.h>
 #include "nrf_twim.h"
+#include "console/console.h"
 
 #include <nrf.h>
 
@@ -542,6 +543,8 @@ err:
         rc = hal_i2c_convert_status(nrf_status);
     }
 
+    console_printf("\x1B[1;31m%s: addr %02x last_op %d rc %d\x1B[0m\n", __func__, pdata->address, last_op, rc);
+
     return (rc);
 }
 
@@ -617,6 +620,8 @@ err:
         regs->ERRORSRC = nrf_status;
         rc = hal_i2c_convert_status(nrf_status);
     }
+
+    console_printf("\x1B[1;31m%s: addr %02x last_op %d rc %d\x1B[0m\n", __func__, pdata->address, last_op, rc);
 
     return (rc);
 }
