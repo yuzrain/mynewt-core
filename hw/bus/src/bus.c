@@ -26,6 +26,7 @@
 #if MYNEWT_VAL(BUS_STATS)
 #include "stats/stats.h"
 #endif
+#include "console/console.h"
 
 static os_time_t g_bus_node_lock_timeout;
 
@@ -222,6 +223,7 @@ bus_node_read(struct os_dev *node, void *buf, uint16_t length,
 
     rc = bus_node_lock(node, bus_node_get_lock_timeout(node));
     if (rc) {
+        console_printf("\x1B[1;31m%s: bnode %p rc %d\x1B[0m\n", __func__, bnode, rc);
         return rc;
     }
 
@@ -232,6 +234,10 @@ bus_node_read(struct os_dev *node, void *buf, uint16_t length,
     }
 
     (void)bus_node_unlock(node);
+
+    if (rc) {
+        console_printf("\x1B[1;31m%s: bnode %p rc %d\x1B[0m\n", __func__, bnode, rc);
+    }
 
     return rc;
 }
@@ -253,6 +259,7 @@ bus_node_write(struct os_dev *node, const void *buf, uint16_t length,
 
     rc = bus_node_lock(node, bus_node_get_lock_timeout(node));
     if (rc) {
+        console_printf("\x1B[1;31m%s: bnode %p rc %d\x1B[0m\n", __func__, bnode, rc);
         return rc;
     }
 
@@ -263,6 +270,10 @@ bus_node_write(struct os_dev *node, const void *buf, uint16_t length,
     }
 
     (void)bus_node_unlock(node);
+
+    if (rc) {
+        console_printf("\x1B[1;31m%s: bnode %p rc %d\x1B[0m\n", __func__, bnode, rc);
+    }
 
     return rc;
 }
@@ -285,6 +296,7 @@ bus_node_write_read_transact(struct os_dev *node, const void *wbuf,
 
     rc = bus_node_lock(node, bus_node_get_lock_timeout(node));
     if (rc) {
+        console_printf("\x1B[1;31m%s: bnode %p rc %d\x1B[0m\n", __func__, bnode, rc);
         return rc;
     }
 
@@ -310,6 +322,10 @@ bus_node_write_read_transact(struct os_dev *node, const void *wbuf,
 
 done:
     (void)bus_node_unlock(node);
+
+    if (rc) {
+        console_printf("\x1B[1;31m%s: bnode %p rc %d\x1B[0m\n", __func__, bnode, rc);
+    }
 
     return rc;
 }
