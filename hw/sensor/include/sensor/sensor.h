@@ -510,10 +510,6 @@ struct sensor_int {
 
 struct sensor_itf {
 
-#if MYNEWT_VAL(BUS_DRIVER_PRESENT)
-    /* Device configuration is stored in bus node */
-    struct os_dev *si_dev;
-#else
     /* Sensor interface type */
     uint8_t si_type;
 
@@ -526,6 +522,10 @@ struct sensor_itf {
     /* Sensor address */
     uint16_t si_addr;
 
+#if MYNEWT_VAL(BUS_DRIVER_PRESENT)
+    /* Device configuration is stored in bus node */
+    struct os_dev *si_dev;
+#else
     /* Mutex for interface access */
     struct os_mutex *si_lock;
 #endif
