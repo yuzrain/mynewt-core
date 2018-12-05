@@ -82,6 +82,16 @@ console_write(const char *str, int cnt)
     }
 }
 
+void
+console_write_str(const char *str)
+{
+    while (*str) {
+        if (console_out(*str++) == EOF) {
+            break;
+        }
+    }
+}
+
 #if MYNEWT_VAL(CONSOLE_COMPAT)
 int
 console_read(char *str, int cnt, int *newline)

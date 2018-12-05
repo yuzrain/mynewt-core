@@ -54,6 +54,10 @@ console_write(const char *str, int cnt)
 {
 }
 
+static void inline console_write_str(const char *str)
+{
+}
+
 static int inline
 console_read(char *str, int cnt, int *newline)
 {
