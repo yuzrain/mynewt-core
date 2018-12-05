@@ -215,23 +215,23 @@ log_module_get_name(uint8_t module)
     if (module < LOG_MODULE_PERUSER) {
         switch (module) {
         case LOG_MODULE_DEFAULT:
-            return "DEFAULT";
+            return "Default";
         case LOG_MODULE_OS:
             return "OS";
         case LOG_MODULE_NEWTMGR:
-            return "NEWTMGR";
+            return "Newtmgr";
         case LOG_MODULE_NIMBLE_CTLR:
-            return "NIMBLE_CTLR";
+            return "NimBLE_Ctlr";
         case LOG_MODULE_NIMBLE_HOST:
-            return "NIMBLE_HOST";
+            return "NimBLE";
         case LOG_MODULE_NFFS:
             return "NFFS";
         case LOG_MODULE_REBOOT:
-            return "REBOOT";
+            return "Reboot";
         case LOG_MODULE_IOTIVITY:
-            return "IOTIVITY";
+            return "IoTivity";
         case LOG_MODULE_TEST:
-            return "TEST";
+            return "Test";
         }
     } else if (module - LOG_MODULE_PERUSER < MYNEWT_VAL(LOG_MAX_USER_MODULES)) {
         return g_log_module_list[module - LOG_MODULE_PERUSER];
