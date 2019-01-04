@@ -19,6 +19,7 @@
 
 #include "hal/hal_i2c.h"
 #include "i2cn/i2cn.h"
+#include "console/console.h"
 
 int
 i2cn_master_read(uint8_t i2c_num, struct hal_i2c_master_data *pdata,
@@ -35,7 +36,16 @@ i2cn_master_read(uint8_t i2c_num, struct hal_i2c_master_data *pdata,
     for (i = 0; i <= retries; i++) {
         rc = hal_i2c_master_read(i2c_num, pdata, timeout, last_op);
         if (rc == 0) {
+            if (i > 0) {
+                console_printf("\x1B[1;32m%s: attempt %d/%d addr %02x\x1B[0m\n", __func__, i + 1, retries + 1, pdata->address);
+            }
             break;
+        }
+
+        if (i < retries) {
+            console_printf("\x1B[1;33m%s: attempt %d/%d addr %02x\x1B[0m\n", __func__, i + 1, retries + 1, pdata->address);
+        } else {
+            console_printf("\x1B[1;31m%s: attempt %d/%d addr %02x\x1B[0m\n", __func__, i + 1, retries + 1, pdata->address);
         }
     }
 
@@ -57,7 +67,16 @@ i2cn_master_write(uint8_t i2c_num, struct hal_i2c_master_data *pdata,
     for (i = 0; i <= retries; i++) {
         rc = hal_i2c_master_write(i2c_num, pdata, timeout, last_op);
         if (rc == 0) {
+            if (i > 0) {
+                console_printf("\x1B[1;32m%s: attempt %d/%d addr %02x\x1B[0m\n", __func__, i + 1, retries + 1, pdata->address);
+            }
             break;
+        }
+
+        if (i < retries) {
+            console_printf("\x1B[1;33m%s: attempt %d/%d addr %02x\x1B[0m\n", __func__, i + 1, retries + 1, pdata->address);
+        } else {
+            console_printf("\x1B[1;31m%s: attempt %d/%d addr %02x\x1B[0m\n", __func__, i + 1, retries + 1, pdata->address);
         }
     }
 
