@@ -32,36 +32,57 @@ bool g_mcu_lpclk_available;
 
 static da1469x_lpclk_cb *g_da1469x_lpclk_cmac_cb;
 
+#if MYNEWT_VAL_CHOICE(MCU_LPCLK_SOURCE, XTAL32K)
 static void
 da1469x_lpclk_settle_tmr_cb(void *arg)
 {
     da1469x_clock_lp_xtal32k_switch();
+    da1469x_lpclk_enabled();
+}
+#endif
 
-    g_mcu_lpclk_available = true;
-
-    if (g_da1469x_lpclk_cmac_cb) {
-        g_da1469x_lpclk_cmac_cb();
+static void
+da1469x_lpclk_notify(void)
+{
+    if (!g_da1469x_lpclk_cmac_cb || !g_mcu_lpclk_available) {
+        return;
     }
+
+#if MYNEWT_VAL_CHOICE(MCU_LPCLK_SOURCE, XTAL32K)
+    g_da1469x_lpclk_cmac_cb(32768);
+#elif MYNEWT_VAL_CHOICE(MCU_LPCLK_SOURCE, RCX)
+    g_da1469x_lpclk_cmac_cb(da1469x_clock_lp_rcx_freq_get());
+#endif
 }
 
 void
 da1469x_lpclk_register_cmac_cb(da1469x_lpclk_cb *cb)
 {
     g_da1469x_lpclk_cmac_cb = cb;
+    da1469x_lpclk_notify();
+}
 
-    if (g_mcu_lpclk_available) {
-        cb();
-    }
+void
+da1469x_lpclk_enabled(void)
+{
+    g_mcu_lpclk_available = true;
+    da1469x_lpclk_notify();
+}
+
+void
+da1469x_lpclk_updated(void)
+{
+    da1469x_lpclk_notify();
 }
 
 void
 da1469x_lpclk_init(void)
 {
+#if MYNEWT_VAL_CHOICE(MCU_LPCLK_SOURCE, XTAL32K)
     static struct hal_timer lpclk_settle_tmr;
-
     da1469x_clock_lp_xtal32k_enable();
-
     os_cputime_timer_init(&lpclk_settle_tmr, da1469x_lpclk_settle_tmr_cb, NULL);
     os_cputime_timer_relative(&lpclk_settle_tmr,
                               MYNEWT_VAL(MCU_CLOCK_XTAL32K_SETTLE_TIME_MS) * 1000);
+#endif
 }

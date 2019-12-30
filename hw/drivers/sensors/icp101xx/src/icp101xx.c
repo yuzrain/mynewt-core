@@ -275,7 +275,7 @@ icp101xx_read(struct sensor_itf *itf, uint8_t * buf, uint32_t len)
     rc = i2cn_master_read(itf->si_num, &data_struct, OS_TICKS_PER_SEC / 10,
                           1, MYNEWT_VAL(ICP101XX_I2C_RETRIES));
     if (rc) {
-        ICP101XX_LOG_ERROR("Failed to read %d bytes from 0x%x\n", 
+        ICP101XX_LOG_ERROR("Failed to read %u bytes from 0x%x\n", len,
                      data_struct.address);
     }
 
@@ -726,7 +726,8 @@ icp101xx_get_data(struct icp101xx *icp101xx, struct icp101xx_cfg *cfg,
                   float * temperature, float * pressure)
 {
     int rc;
-    int32_t raw_press, raw_temp;
+    int32_t raw_press = 0;
+    int32_t raw_temp = 0;
     float pressure_pa;
     float temperature_degc;
 

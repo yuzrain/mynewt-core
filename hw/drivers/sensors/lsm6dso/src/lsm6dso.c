@@ -56,7 +56,7 @@ static struct hal_spi_settings spi_lsm6dso_settings = {
 #endif /* BUS_DRIVER_PRESENT */
 
 /* Default event notification */
-const struct lsm6dso_notif_cfg dflt_notif_cfg[] = {
+static const struct lsm6dso_notif_cfg dflt_notif_cfg[] = {
     {
         .event = SENSOR_EVENT_TYPE_SINGLE_TAP,
         .int_num = 0,
@@ -383,7 +383,6 @@ int lsm6dso_writelen(struct sensor_itf *itf, uint8_t addr,
          */
         uint8_t payload[19];
     } write_data;
-    struct lsm6dso *dev = (struct lsm6dso *)itf->si_dev;
 
     if (len > sizeof(write_data.payload)) {
         return -1;
@@ -406,9 +405,9 @@ int lsm6dso_writelen(struct sensor_itf *itf, uint8_t addr,
     }
 
     sensor_itf_unlock(itf);
+err:
 #endif /* BUS_DRIVER_PRESENT */
 
-err:
     return rc;
 }
 
@@ -516,8 +515,9 @@ static int lsm6dso_spi_fixup(struct sensor *sensor, struct sensor_itf *itf,
         rc = hal_spi_enable(sensor->s_itf.si_num);
         if (rc) {
             return rc;
+        }
 
-        if (init)
+        if (init) {
             return hal_gpio_init_out(sensor->s_itf.si_cs_pin, 1);
         }
     }
@@ -2096,7 +2096,7 @@ int lsm6dso_get_ag_data(struct sensor_itf *itf, sensor_type_t type, void *data,
             sensitivity = cfg->acc_sensitivity;
            break;
         default:
-            LSM6DSO_LOG_ERROR("Invalid sensor type: %d\n", type);
+            LSM6DSO_LOG_ERROR("Invalid sensor type: %d\n", (int)type);
             return SYS_EINVAL;
     }
 

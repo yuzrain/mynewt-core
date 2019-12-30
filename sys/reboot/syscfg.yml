@@ -21,7 +21,7 @@ syscfg.defs:
         description: 'Set reboot log target to be FCB.'
         value: 0
         restrictions:
-            - LOG_FCB
+            - (LOG_FCB || LOG_FCB2)
             - REBOOT_LOG_FLASH_AREA
 
     REBOOT_LOG_CONSOLE:
@@ -53,3 +53,8 @@ syscfg.defs:
     REBOOT_LOG_MOD:
         description: 'Numeric module ID to use for reboot log messages.'
         value: 6
+
+    LOG_SOFT_RESET:
+        description: >
+            Log soft resets.
+        value: 1

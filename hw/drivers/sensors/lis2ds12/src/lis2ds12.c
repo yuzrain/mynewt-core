@@ -43,7 +43,7 @@
 #define LIS2DS12_ST_NUM_READINGS 5
 
 //SLEEP_CHG and SLEEP_STATE interrupts aren't available on int1 or int2 so dont need to be enabled
-const struct lis2ds12_notif_cfg dflt_notif_cfg[] = {
+static const struct lis2ds12_notif_cfg dflt_notif_cfg[] = {
     { SENSOR_EVENT_TYPE_SINGLE_TAP,   0, LIS2DS12_INT1_CFG_SINGLE_TAP  },
     { SENSOR_EVENT_TYPE_DOUBLE_TAP,   0, LIS2DS12_INT1_CFG_DOUBLE_TAP  },
     { SENSOR_EVENT_TYPE_FREE_FALL,    0, LIS2DS12_INT1_CFG_FF          },
@@ -195,7 +195,7 @@ lis2ds12_spi_writelen(struct sensor_itf *itf, uint8_t addr, uint8_t *payload,
         rc = hal_spi_tx_val(itf->si_num, payload[i]);
         if (rc == 0xFFFF) {
             rc = SYS_EINVAL;
-            LIS2DS12_LOG_ERROR("SPI_%u write failed addr:0x%02X:0x%02X\n",
+            LIS2DS12_LOG_ERROR("SPI_%u write failed addr:0x%02X\n",
                          itf->si_num, addr);
             STATS_INC(g_lis2ds12stats, write_errors);
             goto err;

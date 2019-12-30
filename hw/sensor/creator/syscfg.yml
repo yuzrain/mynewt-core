@@ -29,6 +29,24 @@ syscfg.defs:
     LSM303DLHC_OFB:
         description: 'LSM303 is present'
         value : 0
+    LSM6DSO_OFB:
+        description: 'LSM6DSO is present'
+        value : 0
+    LSM6DSO_OFB_I2C_NUM:
+        description: 'I2C interface used for LSM6DS0'
+        value: 0
+        restrictions:
+         - '(LSM6DSO_OFB == 0) ||
+            ((LSM6DSO_OFB_I2C_NUM == 0) && (I2C_0 == 1)) ||
+            ((LSM6DSO_OFB_I2C_NUM == 1) && (I2C_1 == 1)) ||
+            ((LSM6DSO_OFB_I2C_NUM == 2) && (I2C_2 == 1))'
+    LSM6DSO_OFB_I2C_BUS:
+        description: 'I2C interface used for LSM6DSO'
+        value : '"i2c0"'
+    LSM6DSO_OFB_I2C_ADDR:
+        description: 'I2C address of LSM6DSO 0x6A or 0x6B'
+        value: 0x6A
+        range: 0x6A,0x6B
     MPU6050_OFB:
         description: 'MPU6050 is present'
         value : 0
@@ -46,6 +64,13 @@ syscfg.defs:
     BNO055_OFB:
         description: 'BNO055 is present'
         value : 0
+    BNO055_OFB_I2C_BUS:
+        description: 'I2C interface used for BNO055'
+        value : '"i2c0"'
+    BNO055_OFB_I2C_ADDR:
+        description: 'I2C address of BNO055 0x28 or 0x29'
+        value: 0x28
+        range: 0x28,0x29
     BME280_OFB:
         description: 'BME280 is present'
         value : 0
@@ -101,6 +126,12 @@ syscfg.defs:
     TCS34725_OFB:
         description: 'TCS34725 is present'
         value : 0
+    TCS34725_OFB_I2C_BUS:
+        description: 'I2C interface used for TCS34725'
+        value: '"i2c0"'
+    TCS34725_OFB_I2C_ADDR:
+        description: 'I2C address of TCS34725'
+        value: 0x29
     BMA253_OFB:
         description: 'BMA253 is present'
         value : 0

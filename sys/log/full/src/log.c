@@ -145,8 +145,9 @@ log_init(void)
 
     STAILQ_INIT(&g_log_list);
     g_log_info.li_version = MYNEWT_VAL(LOG_VERSION);
+#if MYNEWT_VAL(LOG_GLOBAL_IDX)
     g_log_info.li_next_index = 0;
-
+#endif
 #if MYNEWT_VAL(LOG_CLI)
     shell_cmd_register(&g_shell_log_cmd);
 #if MYNEWT_VAL(LOG_FCB_SLOT1)
@@ -155,11 +156,6 @@ log_init(void)
 #if MYNEWT_VAL(LOG_STORAGE_INFO)
     shell_cmd_register(&g_shell_storage_cmd);
 #endif
-#endif
-
-#if MYNEWT_VAL(LOG_NEWTMGR)
-    rc = log_nmgr_register_group();
-    SYSINIT_PANIC_ASSERT(rc == 0);
 #endif
 
 #if MYNEWT_VAL(LOG_CONSOLE)
@@ -301,12 +297,11 @@ log_find(const char *name)
     struct log *log;
 
     log = NULL;
-    do {
-        log = log_list_get_next(log);
+    while ((log = log_list_get_next(log)) != NULL) {
         if (strcmp(log->l_name, name) == 0) {
             break;
         }
-    } while (log != NULL);
+    }
 
     return log;
 }
@@ -317,7 +312,7 @@ struct log_read_hdr_arg {
 };
 
 static int
-log_read_hdr_walk(struct log *log, struct log_offset *log_offset, void *dptr,
+log_read_hdr_walk(struct log *log, struct log_offset *log_offset, const void *dptr,
                   uint16_t len)
 {
     struct log_read_hdr_arg *arg;
@@ -330,12 +325,14 @@ log_read_hdr_walk(struct log *log, struct log_offset *log_offset, void *dptr,
         arg->read_success = 1;
     }
 
+#if MYNEWT_VAL(LOG_VERSION) > 2
     if (arg->hdr->ue_flags & LOG_FLAGS_IMG_HASH) {
         rc = log_fill_current_img_hash(arg->hdr);
         if (!rc || rc == SYS_ENOTSUP) {
             arg->read_success = 1;
         }
     }
+#endif
 
     /* Abort the walk; only one header needed. */
     return 1;
@@ -395,6 +392,9 @@ log_register(char *name, struct log *log, const struct log_handler *lh,
     log->l_level = level;
     log->l_append_cb = NULL;
     log->l_max_entry_len = 0;
+#if !MYNEWT_VAL(LOG_GLOBAL_IDX)
+    log->l_idx = 0;
+#endif
 
     if (!log_registered(log)) {
         STAILQ_INSERT_TAIL(&g_log_list, log, l_next);
@@ -408,7 +408,11 @@ log_register(char *name, struct log *log, const struct log_handler *lh,
 
     /* Call registered handler now - log structure is set and put on list */
     if (log->l_log->log_registered) {
-        log->l_log->log_registered(log);
+        rc = log->l_log->log_registered(log);
+        if (rc) {
+            STAILQ_REMOVE(&g_log_list, log, log, l_next);
+            return rc;
+        }
     }
 
     /* If this is a persisted log, read the index from its most recent entry.
@@ -419,9 +423,15 @@ log_register(char *name, struct log *log, const struct log_handler *lh,
         rc = log_read_last_hdr(log, &hdr);
         if (rc == 0) {
             OS_ENTER_CRITICAL(sr);
+#if MYNEWT_VAL(LOG_GLOBAL_IDX)
             if (hdr.ue_index >= g_log_info.li_next_index) {
                 g_log_info.li_next_index = hdr.ue_index + 1;
             }
+#else
+            if (hdr.ue_index >= log->l_idx) {
+                log->l_idx = hdr.ue_index + 1;
+            }
+#endif
             OS_EXIT_CRITICAL(sr);
         }
     }
@@ -435,17 +445,23 @@ log_set_append_cb(struct log *log, log_append_cb *cb)
     log->l_append_cb = cb;
 }
 
-#if MYNEWT_VAL(LOG_VERSION) > 2
 uint16_t
 log_hdr_len(const struct log_entry_hdr *hdr)
 {
+#if MYNEWT_VAL(LOG_VERSION) > 2
     if (hdr->ue_flags & LOG_FLAGS_IMG_HASH) {
         return LOG_BASE_ENTRY_HDR_SIZE + LOG_IMG_HASHLEN;
     }
+#endif
 
     return LOG_BASE_ENTRY_HDR_SIZE;
 }
-#endif
+
+void
+log_set_rotate_notify_cb(struct log *log, log_notify_rotate_cb *cb)
+{
+    log->l_rotate_notify_cb = cb;
+}
 
 static int
 log_chk_type(uint8_t etype)
@@ -529,7 +545,11 @@ log_append_prepare(struct log *log, uint8_t module, uint8_t level,
     }
 
     OS_ENTER_CRITICAL(sr);
+#if MYNEWT_VAL(LOG_GLOBAL_IDX)
     idx = g_log_info.li_next_index++;
+#else
+    idx = log->l_idx++;
+#endif
     OS_EXIT_CRITICAL(sr);
 
     /* Try to get UTC Time */
@@ -672,7 +692,7 @@ log_append_mbuf_typed_no_free(struct log *log, uint8_t module, uint8_t level,
      * We do a pull up twice, once so that the base header is
      * contiguous, so that we read the flags correctly, second
      * time is so that we account for the image hash as well.
-     */    
+     */
     om = os_mbuf_pullup(om, LOG_BASE_ENTRY_HDR_SIZE);
     if (!om) {
         rc = -1;
@@ -849,7 +869,7 @@ struct log_walk_body_arg {
  * forwards the data to the body walk callback.
  */
 static int
-log_walk_body_fn(struct log *log, struct log_offset *log_offset, void *dptr,
+log_walk_body_fn(struct log *log, struct log_offset *log_offset, const void *dptr,
                  uint16_t len)
 {
     struct log_walk_body_arg *lwba;
@@ -900,13 +920,37 @@ log_walk_body(struct log *log, log_walk_body_func_t walk_body_func,
     return rc;
 }
 
+int
+log_walk_body_section(struct log *log, log_walk_body_func_t walk_body_func,
+              struct log_offset *log_offset)
+{
+    struct log_walk_body_arg lwba = {
+        .fn = walk_body_func,
+        .arg = log_offset->lo_arg,
+    };
+    int rc;
+
+    log_offset->lo_arg = &lwba;
+
+    if (!log->l_log->log_walk_sector) {
+        rc = SYS_ENOTSUP;
+        goto err;
+    }
+
+    rc = log->l_log->log_walk_sector(log, log_walk_body_fn, log_offset);
+    log_offset->lo_arg = lwba.arg;
+
+err:
+    return rc;
+}
+
 /**
  * Reads from the specified log.
  *
  * @return                      The number of bytes read; 0 on failure.
  */
 int
-log_read(struct log *log, void *dptr, void *buf, uint16_t off,
+log_read(struct log *log, const void *dptr, void *buf, uint16_t off,
          uint16_t len)
 {
     int rc;
@@ -917,7 +961,7 @@ log_read(struct log *log, void *dptr, void *buf, uint16_t off,
 }
 
 int
-log_read_hdr(struct log *log, void *dptr, struct log_entry_hdr *hdr)
+log_read_hdr(struct log *log, const void *dptr, struct log_entry_hdr *hdr)
 {
     int bytes_read;
 
@@ -926,6 +970,7 @@ log_read_hdr(struct log *log, void *dptr, struct log_entry_hdr *hdr)
         return SYS_EIO;
     }
 
+#if MYNEWT_VAL(LOG_VERSION) > 2
     if (hdr->ue_flags & LOG_FLAGS_IMG_HASH) {
         bytes_read = log_read(log, dptr, hdr->ue_imghash,
                               LOG_BASE_ENTRY_HDR_SIZE, LOG_IMG_HASHLEN);
@@ -933,12 +978,13 @@ log_read_hdr(struct log *log, void *dptr, struct log_entry_hdr *hdr)
             return SYS_EIO;
         }
     }
+#endif
 
     return 0;
 }
 
 int
-log_read_body(struct log *log, void *dptr, void *buf, uint16_t off,
+log_read_body(struct log *log, const void *dptr, void *buf, uint16_t off,
               uint16_t len)
 {
     int rc;
@@ -950,11 +996,10 @@ log_read_body(struct log *log, void *dptr, void *buf, uint16_t off,
     }
 
     return log_read(log, dptr, buf, log_hdr_len(&hdr) + off, len);
-    
 }
 
 int
-log_read_mbuf(struct log *log, void *dptr, struct os_mbuf *om, uint16_t off,
+log_read_mbuf(struct log *log, const void *dptr, struct os_mbuf *om, uint16_t off,
               uint16_t len)
 {
     int rc;
@@ -969,7 +1014,7 @@ log_read_mbuf(struct log *log, void *dptr, struct os_mbuf *om, uint16_t off,
 }
 
 int
-log_read_mbuf_body(struct log *log, void *dptr, struct os_mbuf *om,
+log_read_mbuf_body(struct log *log, const void *dptr, struct os_mbuf *om,
                    uint16_t off, uint16_t len)
 {
     int rc;
@@ -1076,6 +1121,7 @@ log_set_max_entry_len(struct log *log, uint16_t max_entry_len)
     log->l_max_entry_len = max_entry_len;
 }
 
+#if MYNEWT_VAL(LOG_VERSION) > 2
 int
 log_fill_current_img_hash(struct log_entry_hdr *hdr)
 {
@@ -1085,8 +1131,8 @@ log_fill_current_img_hash(struct log_entry_hdr *hdr)
     /* We have to account for LOG_IMG_HASHLEN bytes of hash */
     return imgr_get_current_hash(hdr->ue_imghash, LOG_IMG_HASHLEN);
 #endif
-
     memset(hdr->ue_imghash, 0, LOG_IMG_HASHLEN);
 
     return SYS_ENOTSUP;
 }
+#endif

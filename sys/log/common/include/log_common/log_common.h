@@ -42,7 +42,7 @@ struct log;
 #define LOG_LEVEL_WARN     (2)
 #define LOG_LEVEL_ERROR    (3)
 #define LOG_LEVEL_CRITICAL (4)
-/* Up to 7 custom log levels. */
+/* Up to 10 custom log levels. */
 #define LOG_LEVEL_MAX      (15)
 
 #define LOG_LEVEL_STR(level) \
@@ -75,11 +75,6 @@ struct log;
 #define LOG_ETYPE_CBOR           (1)
 #define LOG_ETYPE_BINARY         (2)
 #endif
-
-/* Logging medium */
-#define LOG_STORE_CONSOLE    1
-#define LOG_STORE_CBMEM      2
-#define LOG_STORE_FCB        3
 
 /* UTC Timestamp for Jan 2016 00:00:00 */
 #define UTC01_01_2016    1451606400
@@ -122,7 +117,9 @@ struct log;
 
 /* Global log info */
 struct log_info {
+#if MYNEWT_VAL(LOG_GLOBAL_IDX)
     uint32_t li_next_index;
+#endif
     uint8_t li_version;
 };
 
@@ -136,6 +133,13 @@ extern struct log_info g_log_info;
  * @param idx                   The index of newly appended log entry.
  */
 typedef void log_append_cb(struct log *log, uint32_t idx);
+
+/** @typdef log_notify_rotate_cb
+ * @brief Callback that is executed each time we are about to rotate a log.
+ * 
+ * @param log                   The log that is about to rotate 
+ */
+typedef void log_notify_rotate_cb(const struct log *log);
 
 #ifdef __cplusplus
 }

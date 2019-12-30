@@ -229,7 +229,7 @@ spi_writereg(struct sensor_itf * itf, uint8_t addr, uint8_t payload,
         rc = hal_spi_tx_val(itf->si_num, payload);
         if (rc == 0xFFFF) {
             rc = SYS_EINVAL;
-            BMA2XX_LOG_ERROR("SPI_%u write failed addr:0x%02X:0x%02X\n",
+            BMA2XX_LOG_ERROR("SPI_%u write failed addr:0x%02X\n",
                        itf->si_num, addr);
             goto err;
         }
@@ -3251,7 +3251,7 @@ init_intpin(struct bma2xx *bma2xx,
 
     for (i = 0; i < MYNEWT_VAL(SENSOR_MAX_INTERRUPTS_PINS); i++){
         pin = bma2xx->sensor.s_itf.si_ints[i].host_pin;
-        if (pin > 0) {
+        if (pin >= 0) {
             break;
         }
     }

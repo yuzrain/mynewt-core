@@ -20,8 +20,10 @@
 #include <assert.h>
 #include "syscfg/syscfg.h"
 #include "mcu/da1469x_clock.h"
+#include "mcu/da1469x_lpclk.h"
 #include "mcu/da1469x_pd.h"
 #include "mcu/da1469x_pdc.h"
+#include "mcu/da1469x_trimv.h"
 #include "hal/hal_system.h"
 #include "os/os_cputime.h"
 
@@ -57,6 +59,8 @@ hal_system_init(void)
         g_hal_reset_reason = 0;
     }
 #endif
+
+    da1469x_trimv_init_from_otp();
 }
 
 void
@@ -68,9 +72,7 @@ hal_system_reset(void)
 #endif
 
     while (1) {
-        if (hal_debugger_connected()) {
-            asm("bkpt");
-        }
+        HAL_DEBUG_BREAK();
         NVIC_SystemReset();
     }
 }
@@ -87,13 +89,6 @@ hal_system_clock_start(void)
     /* Reset clock dividers to 0 */
     CRG_TOP->CLK_AMBA_REG &= ~(CRG_TOP_CLK_AMBA_REG_HCLK_DIV_Msk | CRG_TOP_CLK_AMBA_REG_PCLK_DIV_Msk);
 
-    /*
-     * We cannot switch lp_clk to XTAL32K here since it needs some time to
-     * settle, so we just disable RCX (we don't need it) and then we'll handle
-     * switch to XTAL32K from sysinit since we need os_cputime for this.
-     */
-    da1469x_clock_lp_rcx_disable();
-
     /* Make sure PD_TIM is up since this is where XTAL32M state machine runs */
     da1469x_pd_acquire(MCU_PD_DOMAIN_TIM);
 
@@ -102,6 +97,21 @@ hal_system_clock_start(void)
     da1469x_clock_sys_xtal32m_enable();
     da1469x_clock_sys_xtal32m_switch_safe();
     da1469x_clock_sys_rc32m_disable();
+
+#if MYNEWT_VAL_CHOICE(MCU_LPCLK_SOURCE, RCX)
+    /* Switch to RCX and calibrate it */
+    da1469x_clock_lp_rcx_enable();
+    da1469x_clock_lp_rcx_switch();
+    da1469x_clock_lp_rcx_calibrate();
+    da1469x_lpclk_enabled();
+#else
+    /*
+     * We cannot switch lp_clk to XTAL32K here since it needs some time to
+     * settle, so we just disable RCX (we don't need it) and then we'll handle
+     * switch to XTAL32K from sysinit since we need os_cputime for this.
+     */
+    da1469x_clock_lp_rcx_disable();
+#endif
 }
 
 enum hal_reset_reason

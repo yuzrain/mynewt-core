@@ -31,15 +31,14 @@
 #if MYNEWT_VAL(SPLIT_LOADER)
 #include "split/split.h"
 #endif
-#include <newtmgr/newtmgr.h>
 #include <bootutil/image.h>
 #include <bootutil/bootutil.h>
-#include <imgmgr/imgmgr.h>
 #include <assert.h>
 #include <string.h>
 #include <reboot/log_reboot.h>
 #include <id/id.h>
 #include "modlog/modlog.h"
+#include <imgmgr/imgmgr.h>
 
 #ifdef ARCH_sim
 #include <mcu/mcu_sim.h>
